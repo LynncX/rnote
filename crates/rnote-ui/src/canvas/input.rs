@@ -282,9 +282,10 @@ pub(crate) fn handle_key_controller_key_pressed(
         )
     };
 
-    // Plain digit keys (without modifiers) switch the pen styles through window accels.
-    // While the current pen is handling text input, stop the propagation after feeding
-    // the key to the engine, so digits are typed into the text instead of switching pens.
+    // Plain digit keys (without modifiers) switch the pen styles, plain 'b' toggles
+    // the bookmarks list - all through window accels. While the current pen is
+    // handling text input, stop the propagation after feeding the key to the engine,
+    // so those keys are typed into the text instead of triggering their actions.
     if propagation == EventPropagation::Proceed
         && gdk_modifiers.is_empty()
         && canvas.engine_ref().penholder.is_handling_text_input()
@@ -302,6 +303,7 @@ pub(crate) fn handle_key_controller_key_pressed(
                 | gdk::Key::KP_4
                 | gdk::Key::KP_5
                 | gdk::Key::KP_6
+                | gdk::Key::b
         )
     {
         propagation = EventPropagation::Stop;

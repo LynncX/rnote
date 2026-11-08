@@ -91,6 +91,8 @@ impl RnAppWindow {
         self.add_action(&action_add_bookmark);
         let action_goto_bookmark = gio::SimpleAction::new("goto-bookmark", Some(glib::VariantTy::INT32));
         self.add_action(&action_goto_bookmark);
+        let action_toggle_bookmark_list = gio::SimpleAction::new("toggle-bookmark-list", None);
+        self.add_action(&action_toggle_bookmark_list);
         let action_selection_trash = gio::SimpleAction::new("selection-trash", None);
         self.add_action(&action_selection_trash);
         let action_selection_duplicate = gio::SimpleAction::new("selection-duplicate", None);
@@ -884,7 +886,8 @@ impl RnAppWindow {
             }
         ));
 
-        // Add a bookmark at the current pen-cursor position (viewport-center fallback)
+        // Add a bookmark at the current pen-cursor position (viewport-center fallback),
+        // with a name-entry dialog.
         action_add_bookmark.connect_activate(clone!(
             #[weak(rename_to=appwindow)]
             self,
@@ -892,14 +895,7 @@ impl RnAppWindow {
                 let Some(canvas) = appwindow.active_tab_canvas() else {
                     return;
                 };
-                let pos = canvas.last_pointer_doc_pos().unwrap_or_else(|| {
-                    canvas.engine_ref().camera.viewport_center()
-                });
-                let (_, widget_flags) = canvas.engine_mut().add_bookmark(pos);
-                appwindow.handle_widget_flags(widget_flags, &canvas);
-                appwindow
-                    .overlays()
-                    .dispatch_toast_text(&gettext("Bookmark added"), None);
+                dialogs::dialog_add_bookmark(&appwindow, &canvas);
             }
         ));
 
@@ -919,6 +915,15 @@ impl RnAppWindow {
                 }
                 let widget_flags = canvas.engine_mut().goto_bookmark(index as u32 as usize);
                 appwindow.handle_widget_flags(widget_flags, &canvas);
+            }
+        ));
+
+        // Toggle the bookmarks list in the sidebar
+        action_toggle_bookmark_list.connect_activate(clone!(
+            #[weak(rename_to=appwindow)]
+            self,
+            move |_, _| {
+                appwindow.toggle_bookmarks_list();
             }
         ));
 
@@ -1302,6 +1307,7 @@ impl RnAppWindow {
         app.set_accels_for_action("win.zoom-out", &["<Ctrl>minus", "<Ctrl>KP_Subtract"]);
         app.set_accels_for_action("win.zoom-toggle-preset", &["<Alt>s"]);
         app.set_accels_for_action("win.add-bookmark", &["<Alt>b"]);
+        app.set_accels_for_action("win.toggle-bookmark-list", &["b"]);
         app.set_accels_for_action("win.import-file", &["<Ctrl><Shift>i"]);
         app.set_accels_for_action("win.undo", &["<Ctrl>z"]);
         app.set_accels_for_action("win.redo", &["<Ctrl><Shift>z"]);

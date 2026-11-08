@@ -82,6 +82,53 @@ pub(crate) async fn dialog_clear_doc(appwindow: &RnAppWindow, canvas: &RnCanvas)
     }
 }
 
+/// Dialog to add a bookmark at the given position, with a name entry.
+pub(crate) fn dialog_add_bookmark(appwindow: &RnAppWindow, canvas: &RnCanvas) {
+    let pos = canvas
+        .last_pointer_doc_pos()
+        .unwrap_or_else(|| canvas.engine_ref().camera.viewport_center());
+
+    let entry_row = adw::EntryRow::builder().title(gettext("Name")).build();
+
+    let dialog = adw::AlertDialog::builder()
+        .heading(gettext("Add Bookmark"))
+        .body(format!("({:.0}, {:.0})", pos.x, pos.y))
+        .build();
+    dialog.set_extra_child(Some(&entry_row));
+    dialog.add_response("cancel", &gettext("Cancel"));
+    dialog.add_response("add", &gettext("Add"));
+    dialog.set_response_appearance("add", adw::ResponseAppearance::Suggested);
+    dialog.set_default_response(Some("add"));
+    dialog.set_close_response("cancel");
+
+    dialog.connect_response(
+        None,
+        clone!(
+            #[weak]
+            appwindow,
+            #[weak]
+            canvas,
+            #[weak]
+            entry_row,
+            move |_, response| {
+                if response != "add" {
+                    return;
+                }
+                let name = entry_row.text().trim().to_string();
+                let (index, mut widget_flags) = canvas.engine_mut().add_bookmark(pos);
+                if !name.is_empty() {
+                    widget_flags |= canvas.engine_mut().rename_bookmark(index, name);
+                }
+                appwindow.handle_widget_flags(widget_flags, &canvas);
+                appwindow
+                    .overlays()
+                    .dispatch_toast_text(&gettext("Bookmark added"), None);
+            }
+        ),
+    );
+    dialog.present(Some(appwindow));
+}
+
 #[allow(unused)]
 pub(crate) async fn dialog_new_doc(appwindow: &RnAppWindow, canvas: &RnCanvas) {
     let builder = Builder::from_resource(

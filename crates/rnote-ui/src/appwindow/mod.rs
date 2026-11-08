@@ -391,6 +391,25 @@ impl RnAppWindow {
         }
     }
 
+    /// Show the sidebar with the bookmarks page selected.
+    pub(crate) fn show_bookmarks_list(&self) {
+        self.sidebar()
+            .sidebar_stack()
+            .set_visible_child_name("bookmarksbrowser_page");
+        self.split_view().set_show_sidebar(true);
+    }
+
+    /// Toggle the sidebar: close it if the bookmarks page is currently shown, else open it.
+    pub(crate) fn toggle_bookmarks_list(&self) {
+        let bookmarks_page_active = self.sidebar().sidebar_stack().visible_child_name().as_deref()
+            == Some("bookmarksbrowser_page");
+        if self.split_view().shows_sidebar() && bookmarks_page_active {
+            self.split_view().set_show_sidebar(false);
+        } else {
+            self.show_bookmarks_list();
+        }
+    }
+
     /// Get the active (selected) tab page.
     pub(crate) fn active_tab_page(&self) -> Option<adw::TabPage> {
         self.imp().overlays.tabview().selected_page()

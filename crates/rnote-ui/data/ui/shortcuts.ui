@@ -181,6 +181,12 @@
                 <property name="accelerator">&lt;alt&gt;b</property>
               </object>
             </child>
+            <child>
+              <object class="GtkShortcutsShortcut">
+                <property name="title" translatable="yes">Toggle Bookmarks List</property>
+                <property name="accelerator">b</property>
+              </object>
+            </child>
           </object>
         </child>
         <child>
