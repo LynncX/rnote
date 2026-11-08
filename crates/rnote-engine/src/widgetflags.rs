@@ -24,6 +24,8 @@ pub struct WidgetFlags {
     pub hide_redo: Option<bool>,
     /// Changes whether text input in the UI toolkit should be enabled.
     pub enable_text_input: Option<bool>,
+    /// Indicates that the engine bookmarks were modified.
+    pub bookmarks_modified: bool,
 }
 
 impl Default for WidgetFlags {
@@ -40,6 +42,7 @@ impl Default for WidgetFlags {
             hide_undo: None,
             hide_redo: None,
             enable_text_input: None,
+            bookmarks_modified: false,
         }
     }
 }
@@ -59,6 +62,7 @@ impl std::ops::BitOrAssign for WidgetFlags {
         self.resize |= rhs.resize;
         self.refresh_ui |= rhs.refresh_ui;
         self.store_modified |= rhs.store_modified;
+        self.bookmarks_modified |= rhs.bookmarks_modified;
         self.view_modified |= rhs.view_modified;
         self.zoomed_temporarily |= rhs.zoomed_temporarily;
         self.zoomed |= rhs.zoomed;

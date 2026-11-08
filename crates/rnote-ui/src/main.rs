@@ -36,8 +36,11 @@ pub(crate) mod unitentry;
 pub(crate) mod utils;
 pub(crate) mod workspacebrowser;
 
+pub(crate) mod bookmarksbrowser;
+
 // Re-exports
 pub(crate) use app::RnApp;
+pub(crate) use bookmarksbrowser::RnBookmarksBrowser;
 pub(crate) use appmenu::RnAppMenu;
 pub(crate) use appwindow::RnAppWindow;
 pub(crate) use canvas::RnCanvas;

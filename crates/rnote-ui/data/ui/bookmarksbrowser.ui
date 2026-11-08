@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<interface>
+  <template class="RnBookmarksBrowser" parent="GtkWidget">
+    <property name="layout-manager">
+      <object class="GtkBinLayout" />
+    </property>
+    <child>
+      <object class="AdwToolbarView">
+        <child type="top">
+          <object class="GtkHeaderBar" id="headerbar">
+            <property name="show-title-buttons">false</property>
+            <property name="title-widget">
+              <object class="AdwWindowTitle" id="title">
+                <property name="title" translatable="yes">Bookmarks</property>
+              </object>
+            </property>
+            <child>
+              <object class="GtkButton" id="add_bookmark_button">
+                <property name="icon-name">plus-symbolic</property>
+                <property name="tooltip-text" translatable="yes">Add a bookmark at the current pen cursor position</property>
+              </object>
+            </child>
+          </object>
+        </child>
+        <property name="content">
+          <object class="GtkScrolledWindow">
+            <property name="hscrollbar-policy">never</property>
+            <property name="child">
+              <object class="GtkListBox" id="bookmarks_list">
+                <property name="selection-mode">none</property>
+                <property name="css-classes">navigation-sidebar</property>
+              </object>
+            </property>
+          </object>
+        </property>
+      </object>
+    </child>
+  </template>
+</interface>

@@ -87,6 +87,10 @@ impl RnAppWindow {
         self.add_action(&action_resize_to_fit_content);
         let action_return_origin_page = gio::SimpleAction::new("return-origin-page", None);
         self.add_action(&action_return_origin_page);
+        let action_add_bookmark = gio::SimpleAction::new("add-bookmark", None);
+        self.add_action(&action_add_bookmark);
+        let action_goto_bookmark = gio::SimpleAction::new("goto-bookmark", Some(glib::VariantTy::INT32));
+        self.add_action(&action_goto_bookmark);
         let action_selection_trash = gio::SimpleAction::new("selection-trash", None);
         self.add_action(&action_selection_trash);
         let action_selection_duplicate = gio::SimpleAction::new("selection-duplicate", None);
@@ -880,6 +884,44 @@ impl RnAppWindow {
             }
         ));
 
+        // Add a bookmark at the current pen-cursor position (viewport-center fallback)
+        action_add_bookmark.connect_activate(clone!(
+            #[weak(rename_to=appwindow)]
+            self,
+            move |_, _| {
+                let Some(canvas) = appwindow.active_tab_canvas() else {
+                    return;
+                };
+                let pos = canvas.last_pointer_doc_pos().unwrap_or_else(|| {
+                    canvas.engine_ref().camera.viewport_center()
+                });
+                let (_, widget_flags) = canvas.engine_mut().add_bookmark(pos);
+                appwindow.handle_widget_flags(widget_flags, &canvas);
+                appwindow
+                    .overlays()
+                    .dispatch_toast_text(&gettext("Bookmark added"), None);
+            }
+        ));
+
+        // Jump to a bookmark
+        action_goto_bookmark.connect_activate(clone!(
+            #[weak(rename_to=appwindow)]
+            self,
+            move |_, parameter| {
+                let Some(canvas) = appwindow.active_tab_canvas() else {
+                    return;
+                };
+                let Some(index) = parameter.and_then(glib::Variant::get::<i32>) else {
+                    return;
+                };
+                if index < 0 {
+                    return;
+                }
+                let widget_flags = canvas.engine_mut().goto_bookmark(index as u32 as usize);
+                appwindow.handle_widget_flags(widget_flags, &canvas);
+            }
+        ));
+
         // New doc
         action_new_doc.connect_activate(clone!(
             #[weak(rename_to=appwindow)]
@@ -1259,6 +1301,7 @@ impl RnAppWindow {
         app.set_accels_for_action("win.zoom-reset", &["<Ctrl>0", "<Ctrl>KP_0"]);
         app.set_accels_for_action("win.zoom-out", &["<Ctrl>minus", "<Ctrl>KP_Subtract"]);
         app.set_accels_for_action("win.zoom-toggle-preset", &["<Alt>s"]);
+        app.set_accels_for_action("win.add-bookmark", &["<Alt>b"]);
         app.set_accels_for_action("win.import-file", &["<Ctrl><Shift>i"]);
         app.set_accels_for_action("win.undo", &["<Ctrl>z"]);
         app.set_accels_for_action("win.redo", &["<Ctrl><Shift>z"]);

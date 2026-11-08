@@ -1,5 +1,6 @@
 // Modules
 pub mod animation;
+pub mod bookmarks;
 pub mod config;
 pub mod export;
 pub mod import;
@@ -191,6 +192,8 @@ pub struct Engine {
     pub camera: Camera,
     #[serde(rename = "penholder")]
     pub penholder: PenHolder,
+    #[serde(rename = "bookmarks")]
+    pub bookmarks: Vec<bookmarks::Bookmark>,
 
     #[cfg(feature = "ui")]
     #[serde(skip)]
@@ -226,6 +229,7 @@ impl Default for Engine {
             store: StrokeStore::default(),
             camera: Camera::default(),
             penholder: PenHolder::default(),
+            bookmarks: Vec::new(),
 
             #[cfg(feature = "ui")]
             audioplayer: None,
@@ -631,6 +635,62 @@ impl Engine {
             )
         };
         self.camera_set_offset_expand(new_offset)
+    }
+
+    /// Add a bookmark at the given position in document coordinate space,
+    /// with an auto-generated unique name. Returns the index of the new bookmark.
+    pub fn add_bookmark(&mut self, pos: Vector2) -> (usize, WidgetFlags) {
+        let mut widget_flags = WidgetFlags::default();
+
+        let mut n = self.bookmarks.len() + 1;
+        while self
+            .bookmarks
+            .iter()
+            .any(|b| b.name == format!("Bookmark {n}"))
+        {
+            n += 1;
+        }
+        self.bookmarks
+            .push(bookmarks::Bookmark::new(format!("Bookmark {n}"), pos));
+
+        widget_flags.bookmarks_modified = true;
+        (self.bookmarks.len() - 1, widget_flags)
+    }
+
+    /// Remove the bookmark at the given index. Returns false if the index is out of bounds.
+    pub fn remove_bookmark(&mut self, index: usize) -> WidgetFlags {
+        let mut widget_flags = WidgetFlags::default();
+
+        if index < self.bookmarks.len() {
+            self.bookmarks.remove(index);
+            widget_flags.bookmarks_modified = true;
+        }
+        widget_flags
+    }
+
+    /// Rename the bookmark at the given index. Returns false if the index is out of bounds.
+    pub fn rename_bookmark(&mut self, index: usize, name: String) -> WidgetFlags {
+        let mut widget_flags = WidgetFlags::default();
+
+        if index < self.bookmarks.len() {
+            self.bookmarks[index].name = name;
+            widget_flags.bookmarks_modified = true;
+        }
+        widget_flags
+    }
+
+    /// Jump the camera viewport center to the position of the bookmark at the given index.
+    /// Returns false if the index is out of bounds.
+    pub fn goto_bookmark(&mut self, index: usize) -> WidgetFlags {
+        let mut widget_flags = WidgetFlags::default();
+
+        if let Some(bookmark) = self.bookmarks.get(index) {
+            let new_offset = bookmark.pos * self.camera.total_zoom()
+                - self.camera.size() * 0.5;
+            widget_flags |= self.camera_set_offset_expand(new_offset)
+                | self.update_rendering_current_viewport();
+        }
+        widget_flags
     }
 
     /// Resize the doc when in autoexpanding layouts. called e.g. when finishing a new stroke.

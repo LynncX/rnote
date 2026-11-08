@@ -175,6 +175,12 @@
                 <property name="accelerator">&lt;alt&gt;s</property>
               </object>
             </child>
+            <child>
+              <object class="GtkShortcutsShortcut">
+                <property name="title" translatable="yes">Add Bookmark at Pen Cursor</property>
+                <property name="accelerator">&lt;alt&gt;b</property>
+              </object>
+            </child>
           </object>
         </child>
         <child>

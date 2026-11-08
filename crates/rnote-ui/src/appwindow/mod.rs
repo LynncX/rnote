@@ -346,6 +346,10 @@ impl RnAppWindow {
             canvas.set_unsaved_changes(true);
             canvas.set_empty(false);
         }
+        if widget_flags.bookmarks_modified {
+            canvas.set_unsaved_changes(true);
+            self.sidebar().bookmarks_browser().refresh_bookmarks_list();
+        }
         if widget_flags.view_modified {
             canvas.queue_allocate();
         }
@@ -775,6 +779,7 @@ impl RnAppWindow {
             .refresh_ui(self);
         self.overlays().penssidebar().tools_page().refresh_ui(self);
         self.sidebar().settings_panel().refresh_ui(self);
+        self.sidebar().bookmarks_browser().refresh_bookmarks_list();
 
         if let Some(canvas) = canvas {
             self.refresh_titles(&canvas);

@@ -1,5 +1,5 @@
 // Imports
-use crate::{RnAppMenu, RnAppWindow, RnSettingsPanel, RnWorkspaceBrowser};
+use crate::{RnAppMenu, RnAppWindow, RnBookmarksBrowser, RnSettingsPanel, RnWorkspaceBrowser};
 use gtk4::{
     Button, CompositeTemplate, Widget, glib, glib::clone, prelude::*, subclass::prelude::*,
 };
@@ -22,6 +22,8 @@ mod imp {
         pub(crate) sidebar_stack: TemplateChild<adw::ViewStack>,
         #[template_child]
         pub(crate) workspacebrowser: TemplateChild<RnWorkspaceBrowser>,
+        #[template_child]
+        pub(crate) bookmarksbrowser: TemplateChild<RnBookmarksBrowser>,
         #[template_child]
         pub(crate) settings_panel: TemplateChild<RnSettingsPanel>,
     }
@@ -96,6 +98,10 @@ impl RnSidebar {
 
     pub(crate) fn workspacebrowser(&self) -> RnWorkspaceBrowser {
         self.imp().workspacebrowser.get()
+    }
+
+    pub(crate) fn bookmarks_browser(&self) -> RnBookmarksBrowser {
+        self.imp().bookmarksbrowser.get()
     }
 
     pub(crate) fn settings_panel(&self) -> RnSettingsPanel {
