@@ -122,6 +122,17 @@ impl Camera {
         widget_flags
     }
 
+    /// Update the viewport offset of the camera without clamping.
+    ///
+    /// Used for the canvas overview mode, where the visible area can be
+    /// larger than the document and offset clamping would pin the view.
+    pub fn set_offset_unclamped(&mut self, offset: Vector2) -> WidgetFlags {
+        let mut widget_flags = WidgetFlags::default();
+        self.offset = offset;
+        widget_flags.view_modified = true;
+        widget_flags
+    }
+
     /// The minimum and maximum surface bounds (document including overshoot) in surface coordinate space.
     pub fn surface_mins_maxs(&self, doc: &Document) -> (Vector2, Vector2) {
         let total_zoom = self.total_zoom();
@@ -178,6 +189,16 @@ impl Camera {
     pub fn zoom_to(&mut self, zoom: f64) -> WidgetFlags {
         let mut widget_flags = WidgetFlags::default();
         self.zoom = zoom.clamp(Self::ZOOM_MIN, Self::ZOOM_MAX);
+        widget_flags.zoomed = true;
+        widget_flags
+    }
+
+    /// Set the permanent zoom, allowing zoom values below [`Camera::ZOOM_MIN`].
+    ///
+    /// Used for the canvas overview mode, where the whole content has to be fitted.
+    pub fn zoom_to_unclamped(&mut self, zoom: f64) -> WidgetFlags {
+        let mut widget_flags = WidgetFlags::default();
+        self.zoom = zoom.clamp(0.005, Self::ZOOM_MAX);
         widget_flags.zoomed = true;
         widget_flags
     }

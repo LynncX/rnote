@@ -693,6 +693,62 @@ impl Engine {
         widget_flags
     }
 
+    /// Enter the canvas overview: zoom out (below [`Camera::ZOOM_MIN`] if needed) to fit
+    /// all content bounds and center the view on them.
+    pub fn canvas_overview_enter(&mut self) -> WidgetFlags {
+        let mut widget_flags = WidgetFlags::default();
+
+        let Some(bounds) = self.bounds_w_content_extended() else {
+            return widget_flags;
+        };
+        let viewport_size = self.camera.size();
+        let bounds_mins = bounds.mins;
+        let bounds_size = (bounds.maxs - bounds.mins).max(Vector2::ONE);
+        // 10 % margin around the content bounds
+        let new_zoom = ((viewport_size.x / bounds_size.x)
+            .min(viewport_size.y / bounds_size.y)
+            / 1.10)
+            .clamp(0.005, Camera::ZOOM_MAX);
+
+        widget_flags |= self.camera.zoom_to_unclamped(new_zoom);
+        let center = bounds_mins + bounds_size * 0.5;
+        let new_offset = center * self.camera.total_zoom() - self.camera.size() * 0.5;
+        widget_flags |= self.camera.set_offset_unclamped(new_offset);
+        widget_flags |= self.canvas_overview_rendering_regenerate();
+        widget_flags
+    }
+
+    /// Exit the canvas overview: restore the zoom and view center saved before entering.
+    pub fn canvas_overview_exit(&mut self, zoom: f64, center: Vector2) -> WidgetFlags {
+        let mut widget_flags = WidgetFlags::default();
+
+        widget_flags |= self.camera.zoom_to(zoom);
+        let new_offset = center * zoom - self.camera.size() * 0.5;
+        widget_flags |= self.camera.set_offset_unclamped(new_offset);
+        widget_flags |= self.canvas_overview_rendering_regenerate();
+        widget_flags
+    }
+
+    /// Invalidate all stroke rendering caches and regenerate the rendering, same as
+    /// after a permanent zoom change. Necessary since the stroke image caches only
+    /// validate against viewport bounds, not against the zoom.
+    fn canvas_overview_rendering_regenerate(&mut self) -> WidgetFlags {
+        let all_strokes = self.store.stroke_keys_unordered();
+        self.store.set_rendering_dirty_for_strokes(&all_strokes);
+        self.background_rendering_regenerate() | self.update_rendering_current_viewport()
+    }
+
+    /// Jump from the canvas overview to the given document position at 100 % zoom.
+    pub fn canvas_overview_jump_to(&mut self, center: Vector2) -> WidgetFlags {
+        self.canvas_overview_exit(Camera::ZOOM_DEFAULT, center)
+    }
+
+    /// Pan the view in canvas overview mode, without offset clamping.
+    pub fn canvas_overview_pan(&mut self, new_offset: Vector2) -> WidgetFlags {
+        self.camera.set_offset_unclamped(new_offset)
+            | self.update_rendering_current_viewport()
+    }
+
     /// Resize the doc when in autoexpanding layouts. called e.g. when finishing a new stroke.
     ///
     /// Background rendering then needs to be updated.

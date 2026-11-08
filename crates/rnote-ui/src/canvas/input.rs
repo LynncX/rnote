@@ -1,5 +1,5 @@
 // Imports
-use super::RnCanvas;
+use super::{CanvasOverviewGesture, RnCanvas};
 use gtk4::{Native, gdk, glib, graphene, prelude::*, subclass::prelude::*};
 use p2d::math::Vector2;
 use rnote_compose::eventresult::EventPropagation;
@@ -180,6 +180,13 @@ pub(crate) fn handle_pointer_controller_event(
         _ => {}
     };
 
+    // In canvas overview mode, pointer input is used for click-to-jump and
+    // drag-to-pan instead of pen input.
+    if canvas.canvas_overview_active() {
+        handle_overview_controller_event(canvas, event, pen_state);
+        return (glib::Propagation::Stop, pen_state, stylus_active);
+    }
+
     if handle_pen_event {
         let Some(elements) = retrieve_pointer_elements(canvas, now, event, backlog_policy) else {
             return (glib::Propagation::Proceed, pen_state, stylus_active);
@@ -262,6 +269,12 @@ pub(crate) fn handle_key_controller_key_pressed(
     trace!("canvas event key pressed - gdk_key: {gdk_key:?}, gdk_modifiers: {gdk_modifiers:?}");
     canvas.grab_focus();
 
+    // Escape exits the canvas overview mode first.
+    if canvas.canvas_overview_active() && gdk_key == gdk::Key::Escape {
+        canvas.canvas_overview_exit(None);
+        return glib::Propagation::Stop;
+    }
+
     let now = Instant::now();
     let keyboard_key = retrieve_keyboard_key(gdk_key);
     let modifier_keys = retrieve_modifier_keys(gdk_modifiers);
@@ -283,9 +296,10 @@ pub(crate) fn handle_key_controller_key_pressed(
     };
 
     // Plain digit keys (without modifiers) switch the pen styles, plain 'b' toggles
-    // the bookmarks list - all through window accels. While the current pen is
-    // handling text input, stop the propagation after feeding the key to the engine,
-    // so those keys are typed into the text instead of triggering their actions.
+    // the bookmarks list, plain 'o' toggles the canvas overview - all through window
+    // accels. While the current pen is handling text input, stop the propagation after
+    // feeding the key to the engine, so those keys are typed into the text instead of
+    // triggering their actions.
     if propagation == EventPropagation::Proceed
         && gdk_modifiers.is_empty()
         && canvas.engine_ref().penholder.is_handling_text_input()
@@ -304,6 +318,7 @@ pub(crate) fn handle_key_controller_key_pressed(
                 | gdk::Key::KP_5
                 | gdk::Key::KP_6
                 | gdk::Key::b
+                | gdk::Key::o
         )
     {
         propagation = EventPropagation::Stop;
@@ -373,6 +388,114 @@ pub(crate) fn reject_pointer_input(event: &gdk::Event, touch_drawing: bool) -> b
 fn event_is_stylus(event: &gdk::Event) -> bool {
     // As in gtk4 'gtkgesturestylus.c:106' we detect if the pointer is a stylus when it has a device tool
     event.device_tool().is_some()
+}
+
+/// The drag threshold in screen pixels before an overview interaction becomes a pan.
+const OVERVIEW_DRAG_THRESHOLD: f64 = 8.0;
+
+/// The pointer position in document coordinate space during canvas overview.
+fn overview_doc_pos(canvas: &RnCanvas, event: &gdk::Event) -> Option<Vector2> {
+    let event_native = Native::for_surface(&event.surface()?)?;
+    let (surface_trans_x, surface_trans_y) = event_native.surface_transform();
+    let widget_pos = event_native
+        .compute_point(
+            canvas,
+            &graphene::Point::from_p2d_vec(Vector2::new(
+                event.position()?.0 - surface_trans_x,
+                event.position()?.1 - surface_trans_y,
+            )),
+        )?;
+
+    Some(
+        canvas
+            .engine_ref()
+            .camera
+            .transform()
+            .inverse()
+            .transform_point2(widget_pos.to_p2d_vec()),
+    )
+}
+
+/// Handles pointer input while the canvas overview mode is active.
+///
+/// A click (no drag) at a position jumps to it at 100 % zoom and exits the overview,
+/// a drag pans the view.
+fn handle_overview_controller_event(
+    canvas: &RnCanvas,
+    event: &gdk::Event,
+    pen_state: PenState,
+) {
+    let gdk_event_type = event.event_type();
+    let is_down = pen_state == PenState::Down;
+
+    // A stylus button press does not set the pen state to down (only the motion
+    // with BUTTON1_MASK does), so the interaction begins on the button press itself,
+    // restricted to the primary button.
+    let interaction_begun = if gdk_event_type == gdk::EventType::ButtonPress {
+        event
+            .downcast_ref::<gdk::ButtonEvent>()
+            .is_some_and(|b| b.button() == gdk::BUTTON_PRIMARY)
+    } else {
+        gdk_event_type == gdk::EventType::TouchBegin
+    };
+
+    if !(interaction_begun
+        || matches!(
+            gdk_event_type,
+            gdk::EventType::MotionNotify
+                | gdk::EventType::ButtonRelease
+                | gdk::EventType::TouchEnd
+                | gdk::EventType::TouchCancel
+        ))
+    {
+        return;
+    }
+
+    let Some(pos) = overview_doc_pos(canvas, event) else {
+        return;
+    };
+
+    if interaction_begun {
+        canvas.set_canvas_overview_gesture(CanvasOverviewGesture {
+            start_doc_pos: Some(pos),
+            last_doc_pos: Some(pos),
+            dragging: false,
+        });
+        return;
+    }
+
+    let mut gesture = canvas.canvas_overview_gesture();
+    if gesture.start_doc_pos.is_none() {
+        return;
+    }
+
+    if is_down {
+        let start_pos = gesture.start_doc_pos.unwrap();
+        let total_zoom = canvas.engine_ref().camera.total_zoom();
+        if !gesture.dragging
+            && ((pos - start_pos) * total_zoom).length() > OVERVIEW_DRAG_THRESHOLD
+        {
+            gesture.dragging = true;
+        }
+
+        if gesture.dragging {
+            let last_pos = gesture.last_doc_pos.unwrap_or(start_pos);
+            let new_offset = canvas.engine_ref().camera.offset() - (pos - last_pos) * total_zoom;
+            let widget_flags = canvas.engine_mut().canvas_overview_pan(new_offset);
+            canvas.emit_handle_widget_flags(widget_flags);
+        }
+
+        gesture.last_doc_pos = Some(pos);
+        canvas.set_canvas_overview_gesture(gesture);
+        return;
+    }
+
+    // Release: a click (without dragging) jumps to the position at 100 % zoom.
+    if !gesture.dragging && gdk_event_type != gdk::EventType::TouchCancel {
+        canvas.canvas_overview_exit(Some(pos));
+    } else {
+        canvas.set_canvas_overview_gesture(CanvasOverviewGesture::default());
+    }
 }
 
 fn retrieve_pointer_elements(

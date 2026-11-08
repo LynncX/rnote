@@ -187,6 +187,12 @@
                 <property name="accelerator">b</property>
               </object>
             </child>
+            <child>
+              <object class="GtkShortcutsShortcut">
+                <property name="title" translatable="yes">Toggle Canvas Overview (click to jump at 100 %, drag to pan)</property>
+                <property name="accelerator">o</property>
+              </object>
+            </child>
           </object>
         </child>
         <child>

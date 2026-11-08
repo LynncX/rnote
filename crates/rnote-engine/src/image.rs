@@ -317,8 +317,9 @@ impl Image {
         bounds.loosen(1.0);
         bounds.assert_valid()?;
 
-        let width_scaled = ((bounds.extents()[0]) * image_scale).round() as u32;
-        let height_scaled = ((bounds.extents()[1]) * image_scale).round() as u32;
+        // Clamp to at least one pixel, e.g. when zoomed far out in the canvas overview.
+        let width_scaled = (((bounds.extents()[0]) * image_scale).round() as u32).max(1);
+        let height_scaled = (((bounds.extents()[1]) * image_scale).round() as u32).max(1);
 
         let mut image_surface = cairo::ImageSurface::create(
             cairo::Format::ARgb32,

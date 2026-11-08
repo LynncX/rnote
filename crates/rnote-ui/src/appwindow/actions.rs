@@ -93,6 +93,8 @@ impl RnAppWindow {
         self.add_action(&action_goto_bookmark);
         let action_toggle_bookmark_list = gio::SimpleAction::new("toggle-bookmark-list", None);
         self.add_action(&action_toggle_bookmark_list);
+        let action_toggle_canvas_overview = gio::SimpleAction::new("toggle-canvas-overview", None);
+        self.add_action(&action_toggle_canvas_overview);
         let action_selection_trash = gio::SimpleAction::new("selection-trash", None);
         self.add_action(&action_selection_trash);
         let action_selection_duplicate = gio::SimpleAction::new("selection-duplicate", None);
@@ -927,6 +929,18 @@ impl RnAppWindow {
             }
         ));
 
+        // Toggle the canvas overview mode (zoomed-out content fit)
+        action_toggle_canvas_overview.connect_activate(clone!(
+            #[weak(rename_to=appwindow)]
+            self,
+            move |_, _| {
+                let Some(canvas) = appwindow.active_tab_canvas() else {
+                    return;
+                };
+                canvas.canvas_overview_toggle();
+            }
+        ));
+
         // New doc
         action_new_doc.connect_activate(clone!(
             #[weak(rename_to=appwindow)]
@@ -1308,6 +1322,7 @@ impl RnAppWindow {
         app.set_accels_for_action("win.zoom-toggle-preset", &["<Alt>s"]);
         app.set_accels_for_action("win.add-bookmark", &["<Alt>b"]);
         app.set_accels_for_action("win.toggle-bookmark-list", &["b"]);
+        app.set_accels_for_action("win.toggle-canvas-overview", &["o"]);
         app.set_accels_for_action("win.import-file", &["<Ctrl><Shift>i"]);
         app.set_accels_for_action("win.undo", &["<Ctrl>z"]);
         app.set_accels_for_action("win.redo", &["<Ctrl><Shift>z"]);

@@ -5,6 +5,7 @@ mod input;
 
 // Re-exports
 pub(crate) use canvaslayout::RnCanvasLayout;
+pub(crate) use imp::CanvasOverviewGesture;
 pub(crate) use input::reject_pointer_input;
 
 // Imports
@@ -95,6 +96,24 @@ mod imp {
         pub(crate) last_export_dir: RefCell<Option<gio::File>>,
         /// The last pointer position in canvas (document) coordinate space.
         pub(crate) last_pointer_doc_pos: RefCell<Option<Vector2>>,
+
+        /// Whether the canvas overview mode (zoomed-out content fit) is active.
+        pub(crate) canvas_overview_active: Cell<bool>,
+        /// The zoom and view center saved when entering the canvas overview mode.
+        pub(crate) canvas_overview_saved: RefCell<Option<(f64, Vector2)>>,
+        /// Drag state of the current canvas overview pointer interaction.
+        pub(crate) canvas_overview_gesture: RefCell<CanvasOverviewGesture>,
+    }
+
+    /// The drag state of a canvas overview pointer interaction.
+    #[derive(Debug, Default, Clone, Copy)]
+    pub(crate) struct CanvasOverviewGesture {
+        /// The doc-space position where the interaction started, None when no interaction.
+        pub(crate) start_doc_pos: Option<Vector2>,
+        /// The last seen doc-space position.
+        pub(crate) last_doc_pos: Option<Vector2>,
+        /// Whether the interaction became a drag (moved beyond the threshold).
+        pub(crate) dragging: bool,
     }
 
     impl Default for RnCanvas {
@@ -194,6 +213,10 @@ mod imp {
 
                 last_export_dir: RefCell::new(None),
                 last_pointer_doc_pos: RefCell::new(None),
+
+                canvas_overview_active: Cell::new(false),
+                canvas_overview_saved: RefCell::new(None),
+                canvas_overview_gesture: RefCell::new(CanvasOverviewGesture::default()),
             }
         }
     }
@@ -960,6 +983,59 @@ impl RnCanvas {
     /// updated on every pointer event. `None` before any pointer input.
     pub(crate) fn last_pointer_doc_pos(&self) -> Option<Vector2> {
         *self.imp().last_pointer_doc_pos.borrow()
+    }
+
+    /// Whether the canvas overview mode is active.
+    pub(crate) fn canvas_overview_active(&self) -> bool {
+        self.imp().canvas_overview_active.get()
+    }
+
+    /// Toggle the canvas overview mode. Entering fits all content bounds into
+    /// the view, exiting restores the previous zoom and view center.
+    pub(crate) fn canvas_overview_toggle(&self) {
+        if self.canvas_overview_active() {
+            self.canvas_overview_exit(None);
+        } else {
+            self.canvas_overview_enter();
+        }
+    }
+
+    fn canvas_overview_enter(&self) {
+        let (zoom, center) = {
+            let engine = self.engine_ref();
+            (engine.camera.zoom(), engine.camera.viewport_center())
+        };
+        *self.imp().canvas_overview_saved.borrow_mut() = Some((zoom, center));
+        *self.imp().canvas_overview_gesture.borrow_mut() = CanvasOverviewGesture::default();
+
+        let widget_flags = self.engine_mut().canvas_overview_enter();
+        self.imp().canvas_overview_active.set(true);
+        self.emit_handle_widget_flags(widget_flags);
+    }
+
+    /// Exit the canvas overview mode, either jumping to the given doc position
+    /// at 100 % zoom, or restoring the state saved when entering.
+    pub(crate) fn canvas_overview_exit(&self, jump_to: Option<Vector2>) {
+        let widget_flags = match jump_to {
+            Some(pos) => self.engine_mut().canvas_overview_jump_to(pos),
+            None => match *self.imp().canvas_overview_saved.borrow() {
+                Some((zoom, center)) => self.engine_mut().canvas_overview_exit(zoom, center),
+                None => WidgetFlags::default(),
+            },
+        };
+        self.imp().canvas_overview_active.set(false);
+        *self.imp().canvas_overview_saved.borrow_mut() = None;
+        *self.imp().canvas_overview_gesture.borrow_mut() = CanvasOverviewGesture::default();
+        self.emit_handle_widget_flags(widget_flags);
+    }
+
+    /// The drag state of the current canvas overview pointer interaction.
+    pub(crate) fn canvas_overview_gesture(&self) -> CanvasOverviewGesture {
+        *self.imp().canvas_overview_gesture.borrow()
+    }
+
+    pub(crate) fn set_canvas_overview_gesture(&self, gesture: CanvasOverviewGesture) {
+        *self.imp().canvas_overview_gesture.borrow_mut() = gesture;
     }
 
     /// Immutable borrow of the engine.
