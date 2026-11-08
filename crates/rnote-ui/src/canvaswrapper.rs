@@ -473,17 +473,9 @@ mod imp {
                         mouse_drag_start,
                         #[weak(rename_to=canvaswrapper)]
                         obj,
-                        move |gesture, _, _| {
-                            // Stylus hover can trigger button events; ignore pan without pressure.
-                            if let Some(event) = gesture.current_event()
-                                && event.device_tool().is_some()
-                            {
-                                let pressure = event.axis(gdk::AxisUse::Pressure);
-                                if pressure.is_some_and(|p| p <= 0.0) {
-                                    gesture.set_state(EventSequenceState::Denied);
-                                    return;
-                                }
-                            }
+                        move |_, _, _| {
+                            // Note: no stylus-hover deny here, so panning with the
+                            // stylus side button while hovering works (0.14 behaviour).
 
                             mouse_drag_start
                                 .set(canvaswrapper.canvas().engine_ref().camera.offset());
