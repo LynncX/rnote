@@ -77,6 +77,8 @@ impl RnAppWindow {
         self.add_action(&action_zoomin);
         let action_zoomout = gio::SimpleAction::new("zoom-out", None);
         self.add_action(&action_zoomout);
+        let action_zoom_toggle_preset = gio::SimpleAction::new("zoom-toggle-preset", None);
+        self.add_action(&action_zoom_toggle_preset);
         let action_add_page_to_doc = gio::SimpleAction::new("add-page-to-doc", None);
         self.add_action(&action_add_page_to_doc);
         let action_remove_page_from_doc = gio::SimpleAction::new("remove-page-from-doc", None);
@@ -770,6 +772,53 @@ impl RnAppWindow {
             }
         ));
 
+        // Zoom toggle between the two zoom presets
+        action_zoom_toggle_preset.connect_activate(clone!(
+            #[weak(rename_to=appwindow)]
+            self,
+            move |_, _| {
+                debug!("zoom-toggle-preset activated");
+                let Some(wrapper) = appwindow.active_tab_wrapper() else {
+                    error!("zoom-toggle-preset: no active tab wrapper");
+                    return;
+                };
+
+                // workaround for https://gitlab.gnome.org/GNOME/gtk/-/issues/187
+                wrapper.workaround_cancel_kinetic_scrolling_for_zoom();
+
+                let (app_settings, canvas) = (
+                    appwindow.app().app_settings(),
+                    appwindow.active_tab_canvas(),
+                );
+                let (preset_1, preset_2) = if let Some(app_settings) = app_settings.as_ref() {
+                    (app_settings.double("zoom-preset-1"), app_settings.double("zoom-preset-2"))
+                } else {
+                    error!("zoom-toggle-preset: settings schema not found, using defaults");
+                    (Camera::ZOOM_DEFAULT, Camera::ZOOM_MIN)
+                };
+                let Some(canvas) = canvas else {
+                    error!("zoom-toggle-preset: no active tab canvas");
+                    return;
+                };
+                let current_zoom = canvas.engine_ref().camera.total_zoom();
+
+                let new_zoom = if (current_zoom - preset_1).abs() <= (current_zoom - preset_2).abs()
+                {
+                    preset_2
+                } else {
+                    preset_1
+                };
+
+                let viewport_center = canvas.engine_ref().camera.viewport_center();
+                let mut widget_flags = canvas.engine_mut().zoom_w_timeout(new_zoom);
+                widget_flags |= canvas
+                    .engine_mut()
+                    .camera
+                    .set_viewport_center(viewport_center);
+                appwindow.handle_widget_flags(widget_flags, &canvas)
+            }
+        ));
+
         // Add page to doc in fixed size mode
         action_add_page_to_doc.connect_activate(clone!(
             #[weak(rename_to=appwindow)]
@@ -1202,6 +1251,7 @@ impl RnAppWindow {
         );
         app.set_accels_for_action("win.zoom-reset", &["<Ctrl>0", "<Ctrl>KP_0"]);
         app.set_accels_for_action("win.zoom-out", &["<Ctrl>minus", "<Ctrl>KP_Subtract"]);
+        app.set_accels_for_action("win.zoom-toggle-preset", &["<Alt>s"]);
         app.set_accels_for_action("win.import-file", &["<Ctrl><Shift>i"]);
         app.set_accels_for_action("win.undo", &["<Ctrl>z"]);
         app.set_accels_for_action("win.redo", &["<Ctrl><Shift>z"]);
@@ -1211,12 +1261,30 @@ impl RnAppWindow {
         app.set_accels_for_action("win.text-bold", &["<Ctrl>b"]);
         app.set_accels_for_action("win.text-italic", &["<Ctrl>i"]);
         app.set_accels_for_action("win.text-underline", &["<Ctrl>u"]);
-        app.set_accels_for_action("win.pen-style::brush", &["<Ctrl>1", "<Ctrl>KP_1"]);
-        app.set_accels_for_action("win.pen-style::shaper", &["<Ctrl>2", "<Ctrl>KP_2"]);
-        app.set_accels_for_action("win.pen-style::typewriter", &["<Ctrl>3", "<Ctrl>KP_3"]);
-        app.set_accels_for_action("win.pen-style::eraser", &["<Ctrl>4", "<Ctrl>KP_4"]);
-        app.set_accels_for_action("win.pen-style::selector", &["<Ctrl>5", "<Ctrl>KP_5"]);
-        app.set_accels_for_action("win.pen-style::tools", &["<Ctrl>6", "<Ctrl>KP_6"]);
+        app.set_accels_for_action(
+            "win.pen-style::brush",
+            &["1", "KP_1", "<Ctrl>1", "<Ctrl>KP_1"],
+        );
+        app.set_accels_for_action(
+            "win.pen-style::shaper",
+            &["2", "KP_2", "<Ctrl>2", "<Ctrl>KP_2"],
+        );
+        app.set_accels_for_action(
+            "win.pen-style::typewriter",
+            &["3", "KP_3", "<Ctrl>3", "<Ctrl>KP_3"],
+        );
+        app.set_accels_for_action(
+            "win.pen-style::eraser",
+            &["4", "KP_4", "<Ctrl>4", "<Ctrl>KP_4"],
+        );
+        app.set_accels_for_action(
+            "win.pen-style::selector",
+            &["5", "KP_5", "<Ctrl>5", "<Ctrl>KP_5"],
+        );
+        app.set_accels_for_action(
+            "win.pen-style::tools",
+            &["6", "KP_6", "<Ctrl>6", "<Ctrl>KP_6"],
+        );
         (1..=9).for_each(|i| {
             app.set_accels_for_action(
                 &format!("win.set-color-{i}"),

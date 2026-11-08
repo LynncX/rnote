@@ -2,6 +2,7 @@
 use super::RnCanvas;
 use gtk4::{Native, gdk, glib, graphene, prelude::*};
 use p2d::math::Vector2;
+use rnote_compose::eventresult::EventPropagation;
 use rnote_compose::penevent::{KeyboardKey, ModifierKey, PenEvent, PenState, ShortcutKey};
 use rnote_compose::penpath::Element;
 use rnote_engine::WidgetFlags;
@@ -266,7 +267,7 @@ pub(crate) fn handle_key_controller_key_pressed(
     let modifier_keys = retrieve_modifier_keys(gdk_modifiers);
     let shortcut_key = retrieve_keyboard_shortcut_key(gdk_key, gdk_modifiers);
 
-    let (propagation, widget_flags) = if let Some(shortcut_key) = shortcut_key {
+    let (mut propagation, widget_flags) = if let Some(shortcut_key) = shortcut_key {
         canvas
             .engine_mut()
             .handle_pressed_shortcut_key(shortcut_key, now)
@@ -280,6 +281,31 @@ pub(crate) fn handle_key_controller_key_pressed(
             now,
         )
     };
+
+    // Plain digit keys (without modifiers) switch the pen styles through window accels.
+    // While the current pen is handling text input, stop the propagation after feeding
+    // the key to the engine, so digits are typed into the text instead of switching pens.
+    if propagation == EventPropagation::Proceed
+        && gdk_modifiers.is_empty()
+        && canvas.engine_ref().penholder.is_handling_text_input()
+        && matches!(
+            gdk_key,
+            gdk::Key::_1
+                | gdk::Key::_2
+                | gdk::Key::_3
+                | gdk::Key::_4
+                | gdk::Key::_5
+                | gdk::Key::_6
+                | gdk::Key::KP_1
+                | gdk::Key::KP_2
+                | gdk::Key::KP_3
+                | gdk::Key::KP_4
+                | gdk::Key::KP_5
+                | gdk::Key::KP_6
+        )
+    {
+        propagation = EventPropagation::Stop;
+    }
 
     canvas.emit_handle_widget_flags(widget_flags);
     propagation.into_glib()

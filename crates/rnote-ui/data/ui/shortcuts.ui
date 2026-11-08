@@ -71,37 +71,37 @@
             <child>
               <object class="GtkShortcutsShortcut">
                 <property name="title" translatable="yes">Switch to the 'Brush'</property>
-                <property name="accelerator">&lt;ctrl&gt;1</property>
+                <property name="accelerator">1 &lt;ctrl&gt;1</property>
               </object>
             </child>
             <child>
               <object class="GtkShortcutsShortcut">
                 <property name="title" translatable="yes">Switch to the 'Shaper'</property>
-                <property name="accelerator">&lt;ctrl&gt;2</property>
+                <property name="accelerator">2 &lt;ctrl&gt;2</property>
               </object>
             </child>
             <child>
               <object class="GtkShortcutsShortcut">
                 <property name="title" translatable="yes">Switch to the 'Typewriter'</property>
-                <property name="accelerator">&lt;ctrl&gt;3</property>
+                <property name="accelerator">3 &lt;ctrl&gt;3</property>
               </object>
             </child>
             <child>
               <object class="GtkShortcutsShortcut">
                 <property name="title" translatable="yes">Switch to the 'Eraser'</property>
-                <property name="accelerator">&lt;ctrl&gt;4</property>
+                <property name="accelerator">4 &lt;ctrl&gt;4</property>
               </object>
             </child>
             <child>
               <object class="GtkShortcutsShortcut">
                 <property name="title" translatable="yes">Switch to the 'Selector'</property>
-                <property name="accelerator">&lt;ctrl&gt;5</property>
+                <property name="accelerator">5 &lt;ctrl&gt;5</property>
               </object>
             </child>
             <child>
               <object class="GtkShortcutsShortcut">
                 <property name="title" translatable="yes">Switch to the 'Tools'</property>
-                <property name="accelerator">&lt;ctrl&gt;6</property>
+                <property name="accelerator">6 &lt;ctrl&gt;6</property>
               </object>
             </child>
             <child>
@@ -167,6 +167,12 @@
               <object class="GtkShortcutsShortcut">
                 <property name="title" translatable="yes">Return to Origin Page</property>
                 <property name="accelerator">&lt;ctrl&gt;Home</property>
+              </object>
+            </child>
+            <child>
+              <object class="GtkShortcutsShortcut">
+                <property name="title" translatable="yes">Toggle between Zoom Presets</property>
+                <property name="accelerator">&lt;alt&gt;s</property>
               </object>
             </child>
           </object>

@@ -141,6 +141,14 @@
       <default>false</default>
       <summary>block pinch to zoom</summary>
     </key>
+    <key name="zoom-preset-1" type="d">
+      <default>1.0</default>
+      <summary>the first zoom preset, used by the zoom toggle shortcut</summary>
+    </key>
+    <key name="zoom-preset-2" type="d">
+      <default>0.2</default>
+      <summary>the second zoom preset, used by the zoom toggle shortcut</summary>
+    </key>
     <key name="respect-borders" type="b">
       <default>false</default>
       <summary>respect borders when pasting</summary>
