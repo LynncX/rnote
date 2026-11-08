@@ -809,7 +809,14 @@ impl RnAppWindow {
                     preset_1
                 };
 
-                let viewport_center = canvas.engine_ref().camera.viewport_center();
+                // When zooming in, center the view on the last pointer position,
+                // so the pane below the cursor is targeted directly.
+                let viewport_center = if new_zoom > current_zoom {
+                    canvas.last_pointer_doc_pos()
+                } else {
+                    None
+                }
+                .unwrap_or_else(|| canvas.engine_ref().camera.viewport_center());
                 let mut widget_flags = canvas.engine_mut().zoom_w_timeout(new_zoom);
                 widget_flags |= canvas
                     .engine_mut()

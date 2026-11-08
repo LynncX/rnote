@@ -93,6 +93,8 @@ mod imp {
         pub(crate) text_input_enabled: Cell<bool>,
 
         pub(crate) last_export_dir: RefCell<Option<gio::File>>,
+        /// The last pointer position in canvas (document) coordinate space.
+        pub(crate) last_pointer_doc_pos: RefCell<Option<Vector2>>,
     }
 
     impl Default for RnCanvas {
@@ -191,6 +193,7 @@ mod imp {
                 text_input_enabled: Cell::new(false),
 
                 last_export_dir: RefCell::new(None),
+                last_pointer_doc_pos: RefCell::new(None),
             }
         }
     }
@@ -951,6 +954,12 @@ impl RnCanvas {
 
     pub(crate) fn widget_size(&self) -> Vector2 {
         Vector2::new(self.width() as f64, self.height() as f64)
+    }
+
+    /// The last pointer position in canvas (document) coordinate space, as
+    /// updated on every pointer event. `None` before any pointer input.
+    pub(crate) fn last_pointer_doc_pos(&self) -> Option<Vector2> {
+        *self.imp().last_pointer_doc_pos.borrow()
     }
 
     /// Immutable borrow of the engine.

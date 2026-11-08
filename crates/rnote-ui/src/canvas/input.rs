@@ -1,6 +1,6 @@
 // Imports
 use super::RnCanvas;
-use gtk4::{Native, gdk, glib, graphene, prelude::*};
+use gtk4::{Native, gdk, glib, graphene, prelude::*, subclass::prelude::*};
 use p2d::math::Vector2;
 use rnote_compose::eventresult::EventPropagation;
 use rnote_compose::penevent::{KeyboardKey, ModifierKey, PenEvent, PenState, ShortcutKey};
@@ -458,6 +458,9 @@ fn retrieve_pointer_elements(
     let pos = event
         .position()
         .map(|(x, y)| transform_pos(Vector2::new(x, y)))?;
+
+    // track the pointer position in document coordinate space
+    *canvas.imp().last_pointer_doc_pos.borrow_mut() = Some(pos);
 
     let pressure = if is_stylus {
         event.axis(gdk::AxisUse::Pressure).unwrap()
